@@ -1,0 +1,11 @@
+
+version: 2
+updates:
+  # 1) Dependencias Python via requirements.txt
+  - package-ecosystem: pip
+    directory: "/"               # <- donde está tu requirements.txt
+    schedule:
+      interval: "weekly"          # puede ser "daily", "weekly"…
+    open-pull-requests-limit: 5  # máximo PRs abiertas a la vez
+    commit-message:
+      prefix: "deps(pip): "      # opcional

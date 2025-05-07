@@ -1,0 +1,31 @@
+# --- Entornos virtuales --------------------------
+venv/
+.env/
+.venv/
+python-env/
+env/
+# --- Cachés de Python ----------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+# --- Archivos generados --------------------------
+*.log
+*.tmp
+*.bak
+*.swp
+# --- Configuración de IDE ------------------------
+.idea/
+.vscode/
+*.iml
+# --- Salidas de pruebas/informes -----------------
+bandit.sarif
+pip-audit.cdx.json
+zap-report*/
+coverage.xml
+htmlcov/
+# --- Artefactos de CI ----------------------------
+*.zip
+*.tar.gz
+# --- Sistemas operativos -------------------------
+.DS_Store
+Thumbs.db

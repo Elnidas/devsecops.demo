@@ -1,0 +1,89 @@
+name: DevSecOps Demo
+on:
+  push:          { branches: ["main"] }
+  pull_request:  { branches: ["main"] }
+  workflow_dispatch:
+
+permissions:
+  contents: read          # necesario para repos privados
+  security-events: write  # subir SARIF a Code scanning
+  actions: read           # idem (solo privados)
+  issues: write           # para ZAP si creas issues
+
+jobs:
+  devsecops:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with: { python-version: "3.11" }
+
+    # ---------- instalar herramientas ----------
+    - name: Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install "bandit[sarif]>=1.8.3" pip-audit
+
+    # ---------- SAST ----------
+    - name: SAST – Bandit
+      run: bandit -r app -f sarif -o bandit.sarif --exit-zero
+
+    - uses: github/codeql-action/upload-sarif@v3
+      with: { sarif_file: bandit.sarif }
+
+    - uses: actions/upload-artifact@v4    # descarga opcional del SARIF
+      with:
+        name: bandit-sarif
+        path: bandit.sarif
+
+      # ---------- SCA ----------
+    - name: SCA – pip-audit
+      run: |
+        pip-audit -r requirements.txt \
+                  -f cyclonedx-json \
+                  -o pip-audit.cdx.json
+      continue-on-error: true
+
+      # artefacto con el SBOM / resultados de pip-audit
+    - name: Subir SBOM pip-audit
+      uses: actions/upload-artifact@v4
+      with:
+        name: pip-audit-sbom
+        path: pip-audit.cdx.json
+
+    # ---------- SCA con sbom.sh-create ----------
+    - name: Generate SBOM via sbom.sh
+      id: sbom
+      uses: codenotary/sbom.sh-create@main
+      with:
+        scan_type: 'grypefs'    # grypefs, trivyfs, syftfs, etc.
+        target: '.'             # escanea todo el repositorio
+
+      # ---------- DAST ----------
+    - name: Start demo app
+      run: |
+        pip install gunicorn
+        gunicorn -w 1 -b 0.0.0.0:5000 app.app:app &
+        sleep 5
+
+    - name: DAST – OWASP ZAP Full Scan
+      uses: zaproxy/action-full-scan@v0.10.0
+      with:
+        target: 'http://localhost:5000'
+        cmd_options: '-m 900 -s -j'  # tiempo máx, spider+ajax
+        artifact_name: zapscan
+        allow_issue_writing: true
+      continue-on-error: true
+
+    - name: Subir reportes ZAP
+      uses: actions/upload-artifact@v4
+      with:
+        name: zapscan
+        path: |
+          report_html.html
+          report_md.md
+          report_json.json
+    
